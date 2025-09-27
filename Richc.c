@@ -1,5 +1,4 @@
       
-      
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,6 +10,7 @@
 
 // 函数声明
 void init_map();
+void display_properties(int player_index);
 
 // 定义常量
 #define MAP_ROWS 8
@@ -770,21 +770,54 @@ void display_player_status(int player_index) {
     position_to_coord(players[player_index].location, &row, &col);
     printf("位置: (%d, %d)\n", row, col);
     
-     printf("道具: 路障:%d个, 机器娃娃:%d个\n", 
+    printf("道具: 路障:%d个, 机器娃娃:%d个\n", 
            players[player_index].items->barrier, 
            players[player_index].items->robot);
     
-    // 删除医院和监狱状态显示
     if (players[player_index].buff->god > 0) {
         printf("状态: 财神附身 (%d回合有效)\n", players[player_index].buff->god);
     } else {
         printf("状态: 正常\n");
     }
+    
+    // 添加房产信息显示
+    display_properties(player_index);
 }
 
 // 掷骰子
 int roll_dice() {
     return rand() % 6 + 1;
+}
+
+void display_properties(int player_index) {
+    printf("房产信息:\n");
+    int total_property_value = 0;
+    int property_count = 0;
+    
+    for (int i = 0; i < TOTAL_CELLS; i++) {
+        int row, col;
+        position_to_coord(i, &row, &col);
+        
+        // 检查该位置是否有房屋且属于当前玩家
+        if (map[row][col].houses != NULL && 
+            map[row][col].houses->owner == players[player_index].symbol) {
+            
+            int price = map[row][col].price;
+            int level = map[row][col].houses->level;
+            int value = price * (level + 1); // 计算总投资价值
+            
+            printf("  - 位置 %d: 等级 %d, 价值 %d元\n", i, level, value);
+            
+            total_property_value += value;
+            property_count++;
+        }
+    }
+    
+    if (property_count == 0) {
+        printf("  暂无房产\n");
+    } else {
+        printf("  房产总数: %d处, 总价值: %d元\n", property_count, total_property_value);
+    }
 }
 
 // 移动玩家
@@ -806,7 +839,9 @@ void move_player(int player_index, int steps) {
                 // 不绕环
                 if (current_location <= god_prop.location && god_prop.location <= target_location) {
                     printf("%s 路过财神道具，获得财神附身5回合！\n", players[player_index].name);
-                    players[player_index].buff->god += 6;
+                    if (players[player_index].buff->god == 0)
+                        players[player_index].buff->god += 6;
+                    else players[player_index].buff->god += 5;
                     
                     // 重置财神道具
                     god_prop.spawn_cooldown = rand() % 11;
@@ -842,7 +877,9 @@ void move_player(int player_index, int steps) {
                 // 绕环
                 if (god_prop.location <= current_location || god_prop.location >= target_location) {
                     printf("%s 路过财神道具，获得财神附身5回合！\n", players[player_index].name);
-                    players[player_index].buff->god += 6;
+                    if (players[player_index].buff->god == 0)
+                        players[player_index].buff->god += 6;
+                    else players[player_index].buff->god += 5;
                     
                     // 重置财神道具
                     god_prop.spawn_cooldown = rand() % 11;
@@ -1302,7 +1339,9 @@ void handle_position(int player_index) {
                         printf("获得了 200点\n");
                         break;
                     case '3':
-                        players[player_index].buff->god = 6;
+                        if(players[player_index].buff->god == 0)
+                            players[player_index].buff->god += 6;
+                        else players[player_index].buff->god += 5;
                         printf("获得了财神附身，5回合有效\n");
                         break;
                     default:
@@ -1439,16 +1478,17 @@ void use_doll(int player_index, int distance) {
 // 显示帮助信息
 void show_help() {
     printf("\n可用命令:\n");
-    printf("  roll        - 掷骰子前进\n");
+    printf("  roll        - 掷骰骰子前进\n");
     printf("  robot       - 使用机器娃娃\n");
     printf("  block n     - 在当前位置前/后方n格放置路障\n");
-    printf("  query       - 查询自己当前资产\n");
+    printf("  query       - 查询自己当前资产(资金、房产等)\n"); // 修改这里的描述
     printf("  help        - 查看可输入指令帮助\n");
     printf("  1/2/3       - 在道具屋购买道具 (1:路障 2:机器娃娃 3:炸弹)\n");
     printf("  y/n         - 在购买/不买地产\n");
     printf("  y/n         - 在自己的地产上升级/不升级\n");
     printf("  quit        - 退出游戏并结算资产最多的玩家为胜者\n");
 }
+
 
 // 处理命令
 int process_command(int player_index, char* command) {
@@ -1813,7 +1853,5 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-
-    
 
     
